@@ -1,10 +1,12 @@
 import { type ReactNode, useCallback, useEffect, useState } from 'react'
 import { api, ApiError, isNetworkError } from '../lib/api'
+import { getProject } from '../lib/localData'
 import { useOnline } from '../lib/online'
-import { requestSync } from '../lib/sync'
+import { syncNow } from '../lib/sync'
 import type { AuthStatus, ProjectInvitePreview, User } from '../lib/types'
 import { AuthScreen } from './AuthScreen'
 import { navigate } from './router'
+import { followEntity } from './workspaceNav'
 import { useDateTimeFormat } from './DateTimePrefsProvider'
 import { formatInstant } from '../lib/dates'
 import { t } from '../lib/i18n'
@@ -78,7 +80,10 @@ export function ProjectInviteScreen({ token, user, status, onAuthenticated, onLo
     setJoin({ kind: 'busy' })
     try {
       const res = await api.acceptProjectInvite(token)
-      requestSync(0)
+      // Pull the joined project and switch to its workspace before opening it,
+      // so the project view does not flash "This project no longer exists."
+      await syncNow().catch(() => undefined)
+      if (await getProject(res.projectId)) await followEntity('project', res.projectId).catch(() => false)
       navigate({ view: 'project', id: res.projectId }, { replace: true })
     } catch (err) {
       if (err instanceof ApiError && err.code === 'already_member') setJoin({ kind: 'already-member' })
