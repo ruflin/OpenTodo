@@ -7,7 +7,7 @@ import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { lazy } from '../../lib/lazy'
 import { useLiveCommentCount } from '../../lib/localData'
 import type { Task } from '../../lib/types'
-import { Tabs } from '../../ui'
+import { Tabs, type TabItem } from '../../ui'
 import { ActivityTab } from './ActivityTab'
 import { CommentsTab } from './CommentsTab'
 import { TimeTab, useTaskTotal } from './TimeTab'
@@ -17,6 +17,7 @@ import { useTaskEntries } from '../../lib/timeEntries'
 import { useShortcutScope } from '../shortcuts'
 import { t } from '../../lib/i18n'
 import { readEnum, writeString } from '../../lib/deviceStorage'
+import { useTaskPagePrefs } from '../../lib/taskPagePrefs'
 
 const HistoryTab = lazy(() => import('./HistoryTab'))
 
@@ -56,6 +57,11 @@ function scrollerOf(el: HTMLElement): HTMLElement {
 
 export function ConversationTabs({ task, userId, readOnly, onOpen, composerHost, page = false }: ConversationTabsProps) {
   const [tab, setTabState] = useState<TaskTab>(readTaskTab)
+  // Hidden tabs (minimal-task-page D1): a hidden tab is never offered, and the stored
+  // device choice falls back to the first tab still shown. All hidden hides the area.
+  const prefs = useTaskPagePrefs()
+  const tabs = TABS.filter((id) => !prefs.hiddenTabs.has(id))
+  const active = tabs.includes(tab) ? tab : tabs[0]
   // The tab bar stays where it is on screen when the tab changes (task-panel-polish D5):
   // its position before the switch, and the height that keeps a shorter tab from pulling it down.
   const section = useRef<HTMLElement | null>(null)
@@ -71,7 +77,8 @@ export function ConversationTabs({ task, userId, readOnly, onOpen, composerHost,
   const hasEntries = useTaskEntries(task.id).length > 0
 
   const setTab = (item: TaskTab) => {
-    if (bar.current && item !== tab) {
+    if (!tabs.includes(item)) return
+    if (bar.current && item !== active) {
       const scroller = scrollerOf(bar.current)
       const top = bar.current.getBoundingClientRect().top - (scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top)
       const natural = section.current ? section.current.getBoundingClientRect().top - (scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top) : top
@@ -105,12 +112,12 @@ export function ConversationTabs({ task, userId, readOnly, onOpen, composerHost,
       const now = bar.current.getBoundingClientRect().top - origin
       if (Math.abs(now - k.top) > 1) scroller.scrollTop += now - k.top
     }
-  }, [tab])
+  }, [active])
 
   useEffect(() => { setFocusComment(null); setMinHeight(undefined) }, [task.id])
 
   // Shift+C (outside text fields) shows Comments and focuses the composer (`panel.comment`); `c` completes the selected task.
-  useShortcutScope('panel', { 'panel.comment': () => { setTab('comments'); setFocusComposer((n) => n + 1) } })
+  useShortcutScope('panel', { 'panel.comment': () => { if (!tabs.includes('comments')) return; setTab('comments'); setFocusComposer((n) => n + 1) } })
 
   // After the Comments tab rendered: focus the composer and bring it into view.
   useEffect(() => {
@@ -118,35 +125,37 @@ export function ConversationTabs({ task, userId, readOnly, onOpen, composerHost,
     const el = composerRef.current
     el?.focus()
     el?.scrollIntoView?.({ block: 'nearest' })
-  }, [focusComposer, tab])
+  }, [focusComposer, active])
+
+  if (tabs.length === 0) return null
 
   return (
     <section ref={section} className="border-t border-default px-4 pb-4 pt-1" aria-label={t('Comments, activity, history and time')} data-conversation>
       {/* The tab bar pins under the panel header while the thread scrolls (web-app "Conversation tabs stay reachable").
           It spans the panel's padding, which the row inside keeps, so a long translation scrolls to the panel's edge. */}
-      <Tabs label={t('Task conversation')} value={tab} onChange={(id) => setTab(id as TaskTab)}
+      <Tabs label={t('Task conversation')} value={active} onChange={(id) => setTab(id as TaskTab)}
         rowRef={(el) => { bar.current = el }} panelStyle={minHeight ? { minHeight, overflowAnchor: 'none' } : { overflowAnchor: 'none' }}
         rowClassName={`sticky z-[5] -mx-4 [&>[role=tablist]]:px-4 ${page ? 'top-[var(--panel-header-h,0px)] bg-canvas' : 'top-0 bg-surface'}`}
         // The row fits the panel (sidebar-brand-and-row-grid D6): icons with their counts when the words do not fit.
         fit
-        tabs={[
+        tabs={([
           { id: 'comments', label: t('Comments'), count, icon: 'message-circle', name: count != null ? t('Comments, {n}', { n: count }) : t('Comments') },
           { id: 'activity', label: t('Activity'), icon: 'activity', name: t('Activity') },
           { id: 'history', label: t('History'), icon: 'history', name: t('History') },
           { id: 'time', label: hasEntries ? t('Time · {duration}', { duration: formatMinutes(tracked) }) : t('Time', { context: 'tracking' }), icon: 'timer',
             word: t('Time', { context: 'tracking' }), value: hasEntries ? formatMinutes(tracked) : undefined,
             name: hasEntries ? t('Time, {duration}', { duration: spokenMinutes(tracked) }) : t('Time', { context: 'tracking' }) },
-        ]}>
-        {tab === 'comments' && <CommentsTab ref={composerRef} task={task} userId={userId} focusComment={focusComment} composerHost={composerHost} expand={focusComposer} />}
-        {tab === 'activity' && (
+        ] satisfies TabItem[]).filter((item) => tabs.includes(item.id as TaskTab))}>
+        {active === 'comments' && <CommentsTab ref={composerRef} task={task} userId={userId} focusComment={focusComment} composerHost={composerHost} expand={focusComposer} />}
+        {active === 'activity' && (
           <ActivityTab task={task} userId={userId} onOpenComment={(id) => { setFocusComment(id); setTab('comments') }} />
         )}
-        {tab === 'history' && (
+        {active === 'history' && (
           <Suspense fallback={<Skeleton shape="line" count={4} label={t('Loading history')} />}>
             <HistoryTab taskId={task.id} readOnly={readOnly} onRestored={(id) => id !== task.id && onOpen?.(id)} />
           </Suspense>
         )}
-        {tab === 'time' && <TimeTab task={task} readOnly={readOnly} />}
+        {active === 'time' && <TimeTab task={task} readOnly={readOnly} />}
       </Tabs>
     </section>
   )

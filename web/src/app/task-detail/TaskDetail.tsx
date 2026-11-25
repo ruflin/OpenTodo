@@ -27,6 +27,7 @@ import { TaskNotes } from './TaskNotes'
 import { TaskPageDialog } from './TaskPageDialog'
 import { TaskPath } from './TaskPath'
 import { useTaskDetail } from './useTaskDetail'
+import { useTaskPagePrefs } from '../../lib/taskPagePrefs'
 
 export { taskLink } from './useTaskDetail'
 export { AddSubtask } from './Subtasks'
@@ -57,6 +58,8 @@ export interface TaskDetailProps {
 export function TaskDetail({ taskId, initial, userId, projects, labelMap, onClose, onDismiss, onOpen, onToggleComplete, readOnly: viewer = false, entering = false }: TaskDetailProps) {
   const panel = useRef<HTMLElement>(null)
   const m = useTaskDetail({ taskId, initial, readOnly: viewer, projects, labelMap, onClose, onOpen, onToggleComplete, scope: panel })
+  // What the person hid on the task page (minimal-task-page D1), the same pref the page reads.
+  const prefs = useTaskPagePrefs()
   // On This occurrence a series' values show without editing them: an edit there
   // goes to the occurrence's record (series-exceptions D5).
   const occurrence = useOccurrenceView(m.task)
@@ -129,11 +132,13 @@ export function TaskDetail({ taskId, initial, userId, projects, labelMap, onClos
           <TaskRelations m={m} onOpen={onOpen} readOnly={viewer} />
           {/* The properties first and the notes in full after the attachments, so long notes
               never push the facts out of view (task-panel-notes-below, GitHub issue 444). */}
-          <Facets task={task} userId={userId} readOnly={readOnly} projects={projects} labelMap={labelMap}
-            parent={m.parent ?? undefined} childCount={m.children.length} onOpen={onOpen} />
+          {!prefs.factsEmpty && (
+            <Facets task={task} userId={userId} readOnly={readOnly} projects={projects} labelMap={labelMap}
+              parent={m.parent ?? undefined} childCount={m.children.length} onOpen={onOpen} />
+          )}
           {/* Custom field values of the task's project (custom-fields). */}
-          <FieldsGroup task={task} readOnly={locked} />
-          <Subtasks task={task} items={m.children} progress={m.progress} readOnly={locked} onToggle={m.toggle} onOpen={onOpen} />
+          {!prefs.hiddenFacts.has('fields') && <FieldsGroup task={task} readOnly={locked} />}
+          {!prefs.hiddenFacts.has('subtasks') && <Subtasks task={task} items={m.children} progress={m.progress} readOnly={locked} onToggle={m.toggle} onOpen={onOpen} />}
           <AttachmentsRow taskId={task.id} userId={userId} role={roleOf(task.project_id, m.memberships ?? new Map())} dropTarget={panel} />
           <TaskNotes task={task} readOnly={locked} />
         </div>

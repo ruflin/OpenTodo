@@ -7880,5 +7880,7 @@
   "Click a task to": "Fare clic su un’attività per",
   "Select, then edit the title": "Selezionare, poi modificare il titolo",
   "Task lists": "Elenchi di attività",
-  "Use the server default ({choice})": "Usa il predefinito del server ({choice})"
+  "Use the server default ({choice})": "Usa il predefinito del server ({choice})",
+  "Turn off what you do not use. Notes and attachments always stay.": "Disattiva ciò che non usi. Note e allegati restano sempre.",
+  "Minimal": "Minimo"
 }

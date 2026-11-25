@@ -890,6 +890,17 @@ var Schema = map[string]map[string]Field{
 		// shows it, and clients keep the stored value. Whether the row is open
 		// is device storage and never synced. Settings, never content.
 		"formatting_toggle": {Kind: kString, Default: `""`},
+		// The task page's hidden facts and tabs (OpenSpec change
+		// minimal-task-page, design D1): comma-separated ids in a hide-list, so
+		// a fact or tab added later shows. Facts: due, sector, when, deadline,
+		// reminders, repeat, priority, estimate, energy, assignee, blocked-by,
+		// blocks, location, labels, project, section, parent, origin, fields,
+		// subtasks. Tabs: comments, activity, history, time. Clients read an
+		// empty, unknown or unreadable value as nothing hidden and keep the
+		// stored value. Settings, never content; hiding changes no data and no
+		// REST, CLI or MCP result.
+		"task_facts": {Kind: kString, Default: `""`},
+		"task_tabs":  {Kind: kString, Default: `""`},
 		// Routines seen marker (OpenSpec change routines-editor, design D10):
 		// the server time (a run's at, Unix ms) up to which the user has seen
 		// routine runs in the Inbox card. Clients never write a smaller value

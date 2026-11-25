@@ -7880,5 +7880,7 @@
   "Click a task to": "Щелчок по задаче",
   "Select, then edit the title": "Выбрать, затем изменить название",
   "Task lists": "Списки задач",
-  "Use the server default ({choice})": "Как на сервере ({choice})"
+  "Use the server default ({choice})": "Как на сервере ({choice})",
+  "Turn off what you do not use. Notes and attachments always stay.": "Отключите то, что не используете. Заметки и вложения всегда остаются.",
+  "Minimal": "Минимум"
 }

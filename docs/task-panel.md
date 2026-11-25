@@ -23,7 +23,7 @@ The **⋯** menu holds **Copy link**, **Attach** and **Delete**. Under the bread
 
 ## The facts
 
-Beside the notes (above them on a narrow screen) are the task's facts, in the words the list uses:
+Beside the notes (above them on a narrow screen) are the task's facts, in the list's words (hide: [Task page](minimal-task-page.md)):
 
 - **Schedule**: **Do** (the date and time, and evening), **Start**, **Deadline**, **Reminder** and **Repeat**.
 - **Details**: **Priority**, **Estimate**, **Assignee**, **Blocked by**, **Blocks** (when something waits for this task) and **Location**.

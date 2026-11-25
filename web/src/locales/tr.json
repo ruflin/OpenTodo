@@ -7880,5 +7880,7 @@
   "Click a task to": "Bir göreve tıklayınca",
   "Select, then edit the title": "Seç, sonra başlığı düzenle",
   "Task lists": "Görev listeleri",
-  "Use the server default ({choice})": "Sunucu varsayılanını kullan ({choice})"
+  "Use the server default ({choice})": "Sunucu varsayılanını kullan ({choice})",
+  "Turn off what you do not use. Notes and attachments always stay.": "Kullanmadığın şeyleri kapat. Notlar ve ekler her zaman kalır.",
+  "Minimal": "Minimal"
 }

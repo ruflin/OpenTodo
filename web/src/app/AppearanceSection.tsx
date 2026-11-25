@@ -37,6 +37,7 @@ import { setTextSize, TEXT_SIZES, type TextSize, useTextSize } from '../lib/text
 import { readTaskOpen, setTaskOpen, type TaskOpenPref } from '../lib/userPrefs'
 import { readRowClick, ROW_CLICK_LABEL, ROW_CLICK_PREFS, setRowClick, useServerRowClick, type RowClickMode, type RowClickPref } from '../lib/rowClickPref'
 import { accountRowLayout, ROW_LAYOUTS, setAccountRowLayout, type RowLayout } from '../lib/rowLayout'
+import { FACT_GROUP_IDS, groupHidden, isMinimalTaskPage, readHiddenTabs, writeFactGroup, writeMinimalTaskPage, writeTab, TASK_TABS, type FactGroup, type TaskTabId } from '../lib/taskPagePrefs'
 import { ROW_LAYOUT_LABEL } from './views/DisplayPanel'
 import { readThemeChoices } from '../lib/theme/choice'
 import { useInstanceThemes } from '../lib/theme/choice'
@@ -50,6 +51,11 @@ const DENSITY_LABEL = translatedMap<Density>({ comfortable: msg('Comfortable'), 
 const TEXT_SIZE_LABEL = translatedMap<TextSize>({ default: msg('Default'), large: msg('Large'), larger: msg('Larger'), largest: msg('Largest') })
 const TASK_OPEN: readonly TaskOpenPref[] = ['page', 'panel']
 const TASK_OPEN_LABEL = translatedMap<TaskOpenPref>({ page: msg('As a page'), panel: msg('In a side panel') })
+
+/** The task page preset (minimal-task-page D2): Everything, or Minimal (every fact and tab hidden). */
+const TASK_PAGE_PRESETS = ['everything', 'minimal'] as const
+type TaskPagePreset = (typeof TASK_PAGE_PRESETS)[number]
+const TASK_PAGE_PRESET_LABEL = translatedMap<TaskPagePreset>({ everything: msg('Everything'), minimal: msg('Minimal') })
 
 /** The destinations of the sidebar's More group, as the switches name them (app-shell "Sidebar structure"). */
 export const PROMOTABLE_LABEL = translatedMap<Promotable>({
@@ -393,12 +399,32 @@ export function SidebarSection() {
 export function TaskDetailsSection() {
   const row = usePrefsRow()
   const serverClick = useServerRowClick()
+  const hiddenTabs = readHiddenTabs(row)
   return <TaskDetailsView value={readTaskOpen(row)} onChange={(v) => act(setTaskOpen(v))}
-    click={{ value: readRowClick(row), server: serverClick, onChange: (v) => act(setRowClick(v)) }} />
+    click={{ value: readRowClick(row), server: serverClick, onChange: (v) => act(setRowClick(v)) }}
+    page={{
+      minimal: isMinimalTaskPage(row),
+      group: (g) => groupHidden(row, g),
+      tab: (tab) => hiddenTabs.has(tab),
+      onMinimal: (minimal) => act(writeMinimalTaskPage(minimal)),
+      onGroup: (g, hidden) => act(writeFactGroup(row, g, hidden)),
+      onTab: (tab, hidden) => act(writeTab(row, tab, hidden)),
+    }} />
 }
 
-export function TaskDetailsView({ value, onChange, click }: { value: TaskOpenPref; onChange: (v: TaskOpenPref) => void; click?: { value: RowClickPref; server: RowClickMode; onChange: (v: RowClickPref) => void } }) {
+/** The task page's display switches (minimal-task-page D1, D2): a preset, then one switch per group and tab. */
+interface TaskPageSettings {
+  minimal: boolean
+  group: (group: FactGroup) => boolean
+  tab: (tab: TaskTabId) => boolean
+  onMinimal: (minimal: boolean) => void
+  onGroup: (group: FactGroup, hidden: boolean) => void
+  onTab: (tab: TaskTabId, hidden: boolean) => void
+}
+
+export function TaskDetailsView({ value, onChange, click, page }: { value: TaskOpenPref; onChange: (v: TaskOpenPref) => void; click?: { value: RowClickPref; server: RowClickMode; onChange: (v: RowClickPref) => void }; page?: TaskPageSettings }) {
   return (
+    <>
     <SettingsSection {...cardCopy('task-details')}>
       <SettingRow id="task-open" {...rowCopy('task-details', 'open')}
         control={<Segmented label={t('Open tasks')} items={TASK_OPEN} labels={TASK_OPEN_LABEL} value={value} onChange={onChange} testId="task-open" />} />
@@ -411,5 +437,27 @@ export function TaskDetailsView({ value, onChange, click }: { value: TaskOpenPre
         } />
       )}
     </SettingsSection>
+    {page && (
+      <SettingsSection {...cardCopy('task-page')}>
+        <SettingRow id="task-page-preset" {...rowCopy('task-page', 'preset')}
+          control={<Segmented label={t('Task page')} items={TASK_PAGE_PRESETS} labels={TASK_PAGE_PRESET_LABEL}
+            value={page.minimal ? 'minimal' : 'everything'} onChange={(v) => page.onMinimal(v === 'minimal')} testId="task-page-preset" />} />
+        {FACT_GROUP_IDS.map((group) => {
+          const copy = rowCopy('task-page', group)
+          return (
+            <SettingRow key={group} id={`task-page-${group}`} {...copy}
+              control={<Switch label={copy.label} checked={!page.group(group)} onChange={(shown) => page.onGroup(group, !shown)} hideLabel />} />
+          )
+        })}
+        {TASK_TABS.map((tab) => {
+          const copy = rowCopy('task-page', tab)
+          return (
+            <SettingRow key={tab} id={`task-page-${tab}`} {...copy}
+              control={<Switch label={copy.label} checked={!page.tab(tab)} onChange={(shown) => page.onTab(tab, !shown)} hideLabel />} />
+          )
+        })}
+      </SettingsSection>
+    )}
+    </>
   )
 }

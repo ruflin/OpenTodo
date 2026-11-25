@@ -1,0 +1,1 @@
+- **A smaller task page.** **Settings → Appearance → Task details → Task page** can hide the facts and tabs you do not use, one group at a time, or set **Minimal** to keep only the title, notes and attachments. Hiding changes no data and syncs to your devices.

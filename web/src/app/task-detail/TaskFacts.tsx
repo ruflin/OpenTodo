@@ -17,6 +17,7 @@ import { dayPartOf, dayPartWord } from '../../lib/dayParts'
 import { energyLevelsOn } from '../../lib/energy'
 import { useTimeSectors } from '../../lib/sectorPrefs'
 import { useUserPrefsRow } from '../../lib/localData'
+import { useTaskPagePrefs, type FactId } from '../../lib/taskPagePrefs'
 import { RotationLine } from './RotationLine'
 import { isNoPriority, priorityAccessibleName, priorityName } from '../../lib/priority'
 
@@ -56,6 +57,11 @@ export function TaskFacts({ stacked = false, ...props }: PropertiesProps & { sta
   const [allShown, setAllShown] = useState(false)
   const m = usePropertiesModel(props)
   const pe = usePartEditor(m, task)
+  // What the person hid on the task page (minimal-task-page D1): a hidden fact is not
+  // drawn and its editor stays closed; showing it again is the settings switch.
+  const prefs = useTaskPagePrefs()
+  const visible = (f: Fact) => !prefs.hiddenFacts.has(f.id as FactId)
+  const labelsShown = !prefs.hiddenFacts.has('labels')
   // Every optional part is asked for, so each fact can read its value (the empty ones are ignored).
   const all = useMemo(() => new Set(OPTIONAL), [])
   const { facets, shownLocation } = useFacetParts(props, m, all)
@@ -69,7 +75,7 @@ export function TaskFacts({ stacked = false, ...props }: PropertiesProps & { sta
   const sectorsOn = useTimeSectors()
   const due = text('due')
   const partWord = dayPartWord(dayPartOf(task))
-  const schedule: Fact[] = [
+  const schedule: Fact[] = ([
     { id: 'due', label: t('Do'), icon: 'sun', value: due && partWord ? `${due} · ${partWord}` : due ?? partWord, empty: t('Set a date'), tone: tone('due') },
     // The time sector (time-sectors D6): offered while unset only with the switch on; a value always shows.
     { id: 'sector', label: t('Time sector'), icon: 'calendar-range', value: text('sector'), empty: t('Set a time sector'), onlySet: !sectorsOn || !!task.recurrence },
@@ -77,8 +83,8 @@ export function TaskFacts({ stacked = false, ...props }: PropertiesProps & { sta
     { id: 'deadline', label: t('Deadline'), icon: 'hourglass', value: text('deadline'), empty: t('Set a deadline'), tone: tone('deadline') },
     { id: 'reminders', label: t('Reminder'), icon: 'alarm-clock', value: text('reminders'), empty: t('Add a reminder') },
     { id: 'repeat', label: t('Repeat'), icon: 'repeat', value: text('repeat'), empty: t('Doesn’t repeat') },
-  ]
-  const details: Fact[] = [
+  ] satisfies Fact[]).filter(visible)
+  const details: Fact[] = ([
     { id: 'priority', label: t('Priority'), icon: 'flag', empty: t('Set a priority'),
       value: isNoPriority(task.priority) ? null : <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className={`h-3 w-3 rounded-full border-2 ${RING[task.priority] ?? 'border-p4'}`} /><ReadAs label={priorityAccessibleName(task.priority)}>{priorityName(task.priority)}</ReadAs></span> },
     { id: 'estimate', label: t('Estimate'), icon: 'clock', value: text('estimate'), empty: t('Add an estimate') },
@@ -87,14 +93,14 @@ export function TaskFacts({ stacked = false, ...props }: PropertiesProps & { sta
     { id: 'blocked-by', label: t('Blocked by'), icon: 'lock', value: text('blocked-by'), empty: t('Add a blocker') },
     { id: 'blocks', label: t('Blocks'), icon: 'arrow-right', value: text('blocks'), empty: '', onlySet: true },
     { id: 'location', label: t('Location'), icon: 'map-pin', value: text('location'), empty: t('Add a place') },
-  ]
-  const where: Fact[] = [
+  ] satisfies Fact[]).filter(visible)
+  const where: Fact[] = ([
     { id: 'project', label: t('Project'), icon: 'folder', empty: '',
       value: <span className="inline-flex min-w-0 items-center gap-1.5">{m.project && <ProjectMark project={m.project} />}<span className="truncate">{text('project')}</span></span> },
     ...(m.offerSection || m.shownSection ? [{ id: 'section', label: t('Section'), icon: 'kanban' as const, value: text('section'), empty: t('No section') }] : []),
     { id: 'parent', label: t('Parent task'), icon: 'corner-down-right', value: task.parent_id ? (props.parent?.title || t('Untitled')) : null, empty: t('Set a parent task') },
     { id: 'origin', label: t('Origin'), icon: 'link', value: text('origin'), empty: '', onlySet: true },
-  ]
+  ] satisfies Fact[]).filter(visible)
 
   const row = (f: Fact) => {
     if ((f.onlySet || readOnly) && f.value === null) return null
@@ -120,7 +126,7 @@ export function TaskFacts({ stacked = false, ...props }: PropertiesProps & { sta
       </div>
     )
   }
-  const editor = !readOnly && pe.open && (
+  const editor = !readOnly && pe.open && !prefs.hiddenFacts.has(pe.open as FactId) && (
     <PartEditor id={pe.open} props={props} m={m} anchor={pe.anchor} segment={pe.segment} onSegment={pe.setSegment} onClose={pe.close} />
   )
 
@@ -132,7 +138,7 @@ export function TaskFacts({ stacked = false, ...props }: PropertiesProps & { sta
     // An editor opened for a hidden row (the list's `b` or `e`) shows them all, so it has its row to anchor to.
     const expanded = allShown || (!!pe.open && !first.some((f) => f.id === pe.open) && !(pe.open === 'labels' && m.labels.length > 0))
     const shown = expanded ? facts : first
-    const hiddenCount = facts.length - first.length + (m.labels.length ? 0 : readOnly ? 0 : 1)
+    const hiddenCount = facts.length - first.length + (labelsShown && !m.labels.length && !readOnly ? 1 : 0)
     const stackedRow = (f: Fact) => {
       const fixed = readOnly || (f.id === 'origin' && parts.get('origin')?.fixed)
       const inner = <>
@@ -152,7 +158,7 @@ export function TaskFacts({ stacked = false, ...props }: PropertiesProps & { sta
         </li>
       )
     }
-    const labelsRow = (m.labels.length > 0 || (expanded && !readOnly)) && (
+    const labelsRow = labelsShown && (m.labels.length > 0 || (expanded && !readOnly)) && (
       <li key="labels" data-fact="labels">
         <button type="button" ref={(el) => pe.partRef('labels', el)} data-part="labels" aria-haspopup="dialog" aria-expanded={pe.open === 'labels'} disabled={readOnly}
           className="flex min-h-11 w-full min-w-0 items-center gap-3 px-3 text-left text-body hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus"
@@ -194,9 +200,9 @@ export function TaskFacts({ stacked = false, ...props }: PropertiesProps & { sta
 
   return (
     <section ref={m.section} aria-label={t('Properties')} className="space-y-5" data-facts>
-      {group(t('Schedule'), 'schedule', schedule.map(row))}
-      {group(t('Details'), 'details', <>{details.map(withTurns(row, (n) => <RotationLine key={n} as="div" className="pl-[7rem]" task={task} userId={userId} />))}<LocationPreview shown={shownLocation} /></>)}
-      {group(t('Labels'), 'labels', (
+      {schedule.length > 0 && group(t('Schedule'), 'schedule', schedule.map(row))}
+      {details.length > 0 && group(t('Details'), 'details', <>{details.map(withTurns(row, (n) => <RotationLine key={n} as="div" className="pl-[7rem]" task={task} userId={userId} />))}<LocationPreview shown={shownLocation} /></>)}
+      {labelsShown && group(t('Labels'), 'labels', (
         <div className="flex flex-wrap items-center gap-1" data-fact="labels">
           {m.labels.map((l) => <LabelChip key={l.id} label={l} />)}
           {!readOnly && (
@@ -210,7 +216,7 @@ export function TaskFacts({ stacked = false, ...props }: PropertiesProps & { sta
           {readOnly && m.labels.length === 0 && <span className="text-meta text-faint">{t('No labels')}</span>}
         </div>
       ))}
-      {group(t('Project'), 'where', where.map(row))}
+      {where.length > 0 && group(t('Project'), 'where', where.map(row))}
       {editor}
     </section>
   )
