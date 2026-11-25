@@ -3,8 +3,9 @@
 // already shows, and on a phone that is a list moving under the finger.
 import { useEffect } from 'react'
 import type { Briefing } from '../../lib/briefing'
-import { useMembership, useUserPrefsRow } from '../../lib/localData'
+import { useMembership, useProjectsOfEveryWorkspace, useUserPrefsRow } from '../../lib/localData'
 import { LIST_READY, perfMark } from '../../lib/perfMarks'
+import { useSyncStatus } from '../../lib/sync'
 import { briefingHidden } from '../../lib/userPrefs'
 import { useBriefing } from '../Briefing'
 import type { ListRoute } from './useListModel'
@@ -26,12 +27,16 @@ function useDayBriefing(route: ListRoute): Briefing | null | undefined {
  * read), which is handed back for the header. All of them are local reads asked for in
  * the same render, so the gate adds no round trip.
  */
-export function useListReady(route: ListRoute, loaded: boolean, hasProject: boolean): { ready: boolean; briefing: Briefing | null } {
+export function useListReady(route: ListRoute, loaded: boolean, hasProject: boolean): { ready: boolean; briefing: Briefing | null; projectPending: boolean } {
   const membership = useMembership(route.view === 'project' ? route.id : '')
   const briefing = useDayBriefing(route)
+  const syncState = useSyncStatus().state
+  const allProjects = useProjectsOfEveryWorkspace()
+  // A project may still be arriving from sync or sitting in another workspace before useWorkspaceFollow switches.
+  const projectPending = route.view === 'project' && (syncState === 'syncing' || allProjects.some((p) => p.id === route.id))
   const ready = loaded && briefing !== undefined && (route.view !== 'project' || (hasProject && membership !== undefined))
   useListReadyMark(ready, route)
-  return { ready, briefing: briefing ?? null }
+  return { ready, briefing: briefing ?? null, projectPending }
 }
 
 /** LIST_READY once per list opened, after the rows' first commit (performance-10k D4). */

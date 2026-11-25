@@ -424,10 +424,10 @@ export function TaskListView({ route, userId, userRole }: { route: ListRoute; us
 
   const agenda = useTodayAgenda(route.view === 'today', today, m.zone)
   const frame = useListFrame(route.view === 'project', board || timeline, m.fieldColumns)
-  const { ready, briefing } = useListReady(route, m.loaded, !!currentProject)
+  const { ready, briefing, projectPending } = useListReady(route, m.loaded, !!currentProject)
   // Measured once the list (and its quick add row) is on screen.
   const quickAddTop = useStickyQuickAdd(quickAddRow, ready && route.view !== 'completed')
-  if (route.view === 'project' && m.projects.length > 0 && !currentProject) return <MissingTarget kind="project" />
+  if (route.view === 'project' && m.projects.length > 0 && !currentProject && !projectPending) return <MissingTarget kind="project" />
   if (route.view === 'label' && m.labels.length > 0 && (!currentLabel || currentLabel.deleted_at)) return <MissingTarget kind="label" />
   if (route.view === 'place' && currentPlace !== undefined && (!currentPlace || currentPlace.deleted_at)) return <MissingTarget kind="place" />
   if (!ready) return <div className="min-w-0 px-4 py-5 md:px-8" data-list-loading />

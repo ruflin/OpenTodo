@@ -1,0 +1,1 @@
+- **Opening a project invite link no longer flashes "This project no longer exists."** Joining waited for nothing before opening the project, so devices with existing projects or another active workspace showed the missing-project state before sync and workspace switching caught up.
