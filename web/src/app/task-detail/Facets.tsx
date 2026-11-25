@@ -39,6 +39,7 @@ import { t } from '../../lib/i18n'
 import { act, reportActionError } from '../actionError'
 import { energyLevelsOn, energyOf, setTaskEnergy } from '../../lib/energy'
 import { useUserPrefsRow } from '../../lib/localData'
+import { useTaskPagePrefs, type FactId } from '../../lib/taskPagePrefs'
 import { estimateUndoable, eveningUndoable, priorityUndoable } from '../../lib/undoActions'
 import { assigneeWithUndo } from '../undoable'
 import { EnergyChoice } from './EnergyChoice'
@@ -145,16 +146,23 @@ export function Facets(props: PropertiesProps) {
   const m = usePropertiesModel(props)
   const ed = m.editing
   const pe = usePartEditor(m, task)
+  // The facts the person hid (minimal-task-page D1): a hidden part is not drawn and
+  // its editor stays closed. The Add menu offers only what is still shown.
+  const prefs = useTaskPagePrefs()
+  const hidden = (id: string) => prefs.hiddenFacts.has(id as FactId)
   const revealed = useMemo(() => {
     const ids = new Set<string>()
     for (const id of OPTIONAL) if (ed.visible(id as Optional)) ids.add(id)
     return ids
   }, [ed])
   const { facets, shownLocation } = useFacetParts(props, m, revealed)
-  const line = (facet: FacetId, icon: IconName, name: string, parts: FacetPart[]) => (
-    <FacetLine facet={facet} icon={icon} name={name} parts={parts} readOnly={readOnly} open={pe.open}
-      onPart={(part) => pe.activate(part.id)} partRef={pe.partRef} />
-  )
+  const line = (facet: FacetId, icon: IconName, name: string, parts: FacetPart[]) => {
+    const shown = parts.filter((p) => !hidden(p.id))
+    return shown.length > 0
+      ? <FacetLine facet={facet} icon={icon} name={name} parts={shown} readOnly={readOnly} open={pe.open}
+        onPart={(part) => pe.activate(part.id)} partRef={pe.partRef} />
+      : null
+  }
 
   return (
     <section ref={m.section} aria-label={t('Properties')} className="space-y-0.5" data-facets>
@@ -162,10 +170,10 @@ export function Facets(props: PropertiesProps) {
       {line('when', 'calendar-days', t('When'), facets.when)}
       {line('how', 'flag', t('How'), facets.how)}
       {facets.who.length > 0 && line('who', 'users', t('Who'), facets.who)}
-      <RotationLine task={task} userId={userId} />
-      <LocationPreview shown={shownLocation} />
-      {!readOnly && <AddMenu task={task} userId={userId} m={m} />}
-      {!readOnly && pe.open && (
+      {!hidden('assignee') && <RotationLine task={task} userId={userId} />}
+      {!hidden('location') && <LocationPreview shown={shownLocation} />}
+      {!readOnly && <AddMenu task={task} userId={userId} m={m} hidden={hidden} />}
+      {!readOnly && pe.open && !hidden(pe.open) && (
         <PartEditor id={pe.open} props={props} m={m} anchor={pe.anchor} segment={pe.segment} onSegment={pe.setSegment} onClose={pe.close} />
       )}
     </section>
@@ -279,7 +287,7 @@ export function PartEditor({ id, props, m, anchor, segment, onSegment, onClose }
 }
 
 /** The Add menu (task-panel-facets D5): what is not set, grouped by facet, then Attach. */
-function AddMenu({ task, userId, m }: { task: Task; userId?: string; m: PropertiesModel }) {
+function AddMenu({ task, userId, m, hidden }: { task: Task; userId?: string; m: PropertiesModel; hidden: (id: string) => boolean }) {
   const { solo, offerSection, editing: ed } = m
   // Energy is offered only while the account has Energy levels on (task-energy D3).
   const energyOn = energyLevelsOn(useUserPrefsRow())
@@ -307,7 +315,7 @@ function AddMenu({ task, userId, m }: { task: Task; userId?: string; m: Properti
       { id: 'blocked-by', label: t('Blocked by'), icon: 'lock', shortcut: keysOf('list.blocked-by') },
     ] },
   ]
-  const shown = groups.map((g) => ({ ...g, offers: g.offers.filter((o) => (o.when ?? true) && !ed.visible(o.id)) })).filter((g) => g.offers.length > 0)
+  const shown = groups.map((g) => ({ ...g, offers: g.offers.filter((o) => (o.when ?? true) && !ed.visible(o.id) && !hidden(o.id)) })).filter((g) => g.offers.length > 0)
   return (
     <div className="pl-7" data-add-property>
       <Menu kind="menu" label={t('Add a property')} title={t('Add')} width="sm:w-64" align="start"

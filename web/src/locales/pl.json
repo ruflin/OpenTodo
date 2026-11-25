@@ -7880,5 +7880,7 @@
   "Click a task to": "Kliknięcie zadania",
   "Select, then edit the title": "Zaznaczenie, potem edycja tytułu",
   "Task lists": "Listy zadań",
-  "Use the server default ({choice})": "Domyślny dla serwera ({choice})"
+  "Use the server default ({choice})": "Domyślny dla serwera ({choice})",
+  "Turn off what you do not use. Notes and attachments always stay.": "Wyłącz to, czego nie używasz. Notatki i załączniki zawsze zostają.",
+  "Minimal": "Minimalny"
 }

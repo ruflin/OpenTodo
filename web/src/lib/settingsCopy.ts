@@ -232,6 +232,27 @@ export const SETTINGS_COPY = {
       click: { label: msg('Click a task to') },
     },
   },
+  // What the task page shows (minimal-task-page D1): two hide-lists in the synced
+  // user_prefs row, so a fact or tab added later shows until it is hidden.
+  'task-page': {
+    title: msg('Task page'),
+    icon: 'panel-right',
+    description: msg('Turn off what you do not use. Notes and attachments always stay.'),
+    learnMore: 'task-panel',
+    rows: {
+      preset: { label: msg('Show') },
+      schedule: { label: msg('Schedule') },
+      details: { label: msg('Details') },
+      labels: { label: msg('Labels') },
+      project: { label: msg('Project') },
+      fields: { label: msg('Custom fields') },
+      subtasks: { label: msg('Subtasks') },
+      comments: { label: msg('Comments') },
+      activity: { label: msg('Activity') },
+      history: { label: msg('History') },
+      time: { label: msg('Time') },
+    },
+  },
 
   // Settings → General
   language: {

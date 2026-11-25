@@ -30,6 +30,7 @@ import { TaskPageDialog } from './TaskPageDialog'
 import { TaskPath } from './TaskPath'
 import { useFooterKeepsScroll } from './pinnedFooterScroll'
 import { useTaskDetail } from './useTaskDetail'
+import { useTaskPagePrefs } from '../../lib/taskPagePrefs'
 
 export interface TaskPageNav {
   /** Where the task sits in the list it was opened from, or null when it is not listed there. */
@@ -57,6 +58,9 @@ export interface TaskPageViewProps {
 export function TaskPageView({ taskId, userId, readOnly: viewer, projects, labelMap, nav, onOpen }: TaskPageViewProps) {
   const root = useRef<HTMLDivElement>(null)
   const m = useTaskDetail({ taskId, readOnly: viewer, projects, labelMap, onClose: nav.onBack, onOpen, scope: root })
+  // What the person hid on the task page (minimal-task-page D1): the facts column, the
+  // custom fields block and the subtask block can each go; notes and attachments stay.
+  const prefs = useTaskPagePrefs()
   // On This occurrence a series' values show without editing them (series-exceptions D5).
   const occurrence = useOccurrenceView(m.task)
   const readOnly = viewer || !!occurrence
@@ -146,11 +150,13 @@ export function TaskPageView({ taskId, userId, readOnly: viewer, projects, label
           </div>
           <TaskRelations m={m} onOpen={onOpen} readOnly={viewer} />
         </div>
-        <aside aria-label={t('Facts')} className="min-w-0 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:sticky lg:top-(--panel-header-h) lg:self-start lg:border-l lg:border-soft lg:pl-8 lg:pt-4 max-lg:rounded-card max-lg:border max-lg:border-default md:max-lg:p-3 max-md:overflow-hidden" data-task-facts>
-          {/* Below 768 px the facts are one stacked card of 44 px rows (precision-phone D4). */}
-          <TaskFacts stacked={!desktop} task={task} userId={userId} readOnly={readOnly} projects={projects} labelMap={labelMap}
-            parent={m.parent ?? undefined} childCount={m.children.length} onOpen={onOpen} />
-        </aside>
+        {!prefs.factsEmpty && (
+          <aside aria-label={t('Facts')} className="min-w-0 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:sticky lg:top-(--panel-header-h) lg:self-start lg:border-l lg:border-soft lg:pl-8 lg:pt-4 max-lg:rounded-card max-lg:border max-lg:border-default md:max-lg:p-3 max-md:overflow-hidden" data-task-facts>
+            {/* Below 768 px the facts are one stacked card of 44 px rows (precision-phone D4). */}
+            <TaskFacts stacked={!desktop} task={task} userId={userId} readOnly={readOnly} projects={projects} labelMap={labelMap}
+              parent={m.parent ?? undefined} childCount={m.children.length} onOpen={onOpen} />
+          </aside>
+        )}
         {/* From 1024 px the notes follow the title as one block, as before: the grid's row gap is taken back. */}
         <div className="min-w-0 space-y-3 lg:col-start-1 lg:row-start-2 lg:-mt-3" data-task-notes-block data-outline-room>
           <TaskNotes task={task} readOnly={locked} outline="auto" />
@@ -162,8 +168,8 @@ export function TaskPageView({ taskId, userId, readOnly: viewer, projects, label
         </div>
         <div className="min-w-0 space-y-4 lg:col-start-1 lg:row-start-3" data-task-rest>
           {/* Custom field values of the task's project (custom-fields). */}
-          <FieldsGroup task={task} readOnly={locked} />
-          <Subtasks task={task} items={m.children} progress={m.progress} readOnly={locked} boxed onToggle={m.toggle} onOpen={onOpen} />
+          {!prefs.hiddenFacts.has('fields') && <FieldsGroup task={task} readOnly={locked} />}
+          {!prefs.hiddenFacts.has('subtasks') && <Subtasks task={task} items={m.children} progress={m.progress} readOnly={locked} boxed onToggle={m.toggle} onOpen={onOpen} />}
           <AttachmentsRow taskId={task.id} userId={userId} role={roleOf(task.project_id, m.memberships ?? new Map())} dropTarget={root} />
           <ConversationTabs task={task} userId={userId} readOnly={readOnly} onOpen={onOpen} composerHost={footer} page />
           {/* Above the sticky tab bar (z 5), under the page header (z 10): pinned over the thread, the

@@ -7880,5 +7880,7 @@
   "Click a task to": "Klick auf eine Aufgabe",
   "Select, then edit the title": "Auswählen, dann Titel bearbeiten",
   "Task lists": "Aufgabenlisten",
-  "Use the server default ({choice})": "Serverstandard verwenden ({choice})"
+  "Use the server default ({choice})": "Serverstandard verwenden ({choice})",
+  "Turn off what you do not use. Notes and attachments always stay.": "Schalte aus, was du nicht brauchst. Notizen und Anhänge bleiben immer.",
+  "Minimal": "Minimal"
 }
